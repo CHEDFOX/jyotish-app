@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://91.108.104.168:8080';
+const API_BASE_URL = 'https://api.plutto.space';
 
 // Kundli Generation
 export const generateKundli = async (userData, birthData) => {

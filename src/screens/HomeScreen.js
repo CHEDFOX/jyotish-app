@@ -14,6 +14,7 @@ import {
 import { colors, spacing } from '../theme';
 import { chatWithOracle } from '../api/backend';
 import VoiceChatScreen from './VoiceChatScreen';
+import SoulMap from '../components/SoulMap';
 import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -159,47 +160,57 @@ const AstroTab = ({ content }) => {
   );
 };
 
-// Profile Tab Component
-const ProfileTab = ({ content, userData, kundliData, onLogout }) => {
-  const profileItems = [
-    { label: content.sunSign, value: kundliData?.sun_sign || '—' },
-    { label: content.moonSign, value: kundliData?.moon_sign || '—' },
-    { label: content.ascendant, value: kundliData?.ascendant || '—' },
-    { label: content.currentDasha, value: kundliData?.current_dasha || '—' },
-    { label: content.nakshatra, value: kundliData?.nakshatra || '—' },
-  ];
+// Profile Tab Component - Apple Style
+const ProfileTab = ({ content, userData, kundliData, language, onLogout }) => {
+  // Generate archetype based on ascendant
+  const getArchetype = () => {
+    const ascendant = kundliData?.raw?.ascendant || kundliData?.ascendant || 'Aries';
+    
+    const archetypes = {
+      'Aries': { en: 'The Pioneer', hi: 'अग्रणी', zh: '先锋', es: 'El Pionero', pt: 'O Pioneiro', ja: '開拓者' },
+      'Taurus': { en: 'The Sensualist', hi: 'रसिक', zh: '感官者', es: 'El Sensualista', pt: 'O Sensualista', ja: '官能者' },
+      'Gemini': { en: 'The Storyteller', hi: 'कथावाचक', zh: '说书人', es: 'El Narrador', pt: 'O Contador', ja: '語り部' },
+      'Cancer': { en: 'The Nurturer', hi: 'पालनकर्ता', zh: '养育者', es: 'El Protector', pt: 'O Protetor', ja: '養育者' },
+      'Leo': { en: 'The Luminary', hi: 'प्रकाशमान', zh: '发光体', es: 'El Luminario', pt: 'O Luminário', ja: '発光体' },
+      'Virgo': { en: 'The Analyst', hi: 'विश्लेषक', zh: '分析师', es: 'El Analista', pt: 'O Analista', ja: '分析家' },
+      'Libra': { en: 'The Harmonist', hi: 'सामंजस्यकर्ता', zh: '和谐者', es: 'El Armonizador', pt: 'O Harmonizador', ja: '調和者' },
+      'Scorpio': { en: 'The Alchemist', hi: 'रसायनी', zh: '炼金术士', es: 'El Alquimista', pt: 'O Alquimista', ja: '錬金術師' },
+      'Sagittarius': { en: 'The Philosopher', hi: 'दार्शनिक', zh: '哲学家', es: 'El Filósofo', pt: 'O Filósofo', ja: '哲学者' },
+      'Capricorn': { en: 'The Architect', hi: 'वास्तुकार', zh: '建筑师', es: 'El Arquitecto', pt: 'O Arquiteto', ja: '建築家' },
+      'Aquarius': { en: 'The Visionary', hi: 'द्रष्टा', zh: '远见者', es: 'El Visionario', pt: 'O Visionário', ja: '先見者' },
+      'Pisces': { en: 'The Mystic', hi: 'रहस्यवादी', zh: '神秘者', es: 'El Místico', pt: 'O Místico', ja: '神秘者' },
+    };
+    
+    const lang = language || 'en';
+    return archetypes[ascendant]?.[lang] || archetypes['Aries'][lang];
+  };
 
   return (
     <View style={styles.profileContainer}>
-      <View style={styles.triangleContainer}>
-        <View style={styles.triangleClip}>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarInitial}>
-              {userData?.name?.charAt(0)?.toUpperCase() || '?'}
-            </Text>
-          </View>
-        </View>
+      {/* Planet Symbol */}
+      <View style={styles.planetContainer}>
+        <View style={styles.planetGlow} />
+        <Text style={styles.planetSymbol}>✧</Text>
       </View>
 
-      <Text style={styles.userName}>{userData?.name || 'User'}</Text>
+      {/* Name */}
+      <Text style={styles.userName}>
+        {userData?.name || 'Seeker'}
+      </Text>
 
-      <View style={styles.profileCard}>
-        {profileItems.map((item, index) => (
-          <View key={index} style={[styles.profileRow, index === profileItems.length - 1 && styles.profileRowLast]}>
-            <Text style={styles.profileLabel}>{item.label}</Text>
-            <Text style={styles.profileValue}>{item.value}</Text>
-          </View>
-        ))}
-      </View>
+      {/* Archetype */}
+      <Text style={styles.archetype}>
+        {getArchetype()}
+      </Text>
 
-      <TouchableOpacity style={styles.languageButton}>
-        <Text style={styles.languageIcon}>🌐</Text>
-      </TouchableOpacity>
+      {/* Soul Map */}
+      <SoulMap kundliData={kundliData} language={language} />
 
+      {/* Logout */}
       <TouchableOpacity
         style={styles.logoutButton}
         onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           if (onLogout) onLogout();
         }}
       >
@@ -395,6 +406,7 @@ export default function HomeScreen({ language = 'en', userData, birthData, kundl
           content={content}
           userData={userData}
           kundliData={kundliData}
+          language={language}
           onLogout={onLogout}
         />
       )}
@@ -610,90 +622,53 @@ const styles = StyleSheet.create({
   profileContainer: {
     flex: 1,
     paddingTop: 80,
-    paddingHorizontal: spacing.lg,
     alignItems: 'center',
-  },
-  triangleContainer: {
-    width: 100,
-    height: 100,
-    marginBottom: spacing.lg,
-  },
-  triangleClip: {
-    width: 100,
-    height: 100,
-    backgroundColor: colors.abyss,
-    transform: [{ rotate: '45deg' }],
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.ash,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarPlaceholder: {
-    width: 140,
-    height: 140,
     backgroundColor: colors.void,
-    justifyContent: 'center',
-    alignItems: 'center',
-    transform: [{ rotate: '-45deg' }],
   },
-  avatarInitial: {
-    fontSize: 36,
-    fontWeight: '200',
-    color: colors.white,
+  planetContainer: {
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  planetGlow: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  planetSymbol: {
+    fontSize: 40,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   userName: {
-    fontSize: 24,
+    fontSize: 26,
+    fontWeight: '200',
+    color: colors.white,
+    letterSpacing: 4,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  archetype: {
+    fontSize: 13,
     fontWeight: '300',
-    color: colors.white,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-    letterSpacing: 1,
-  },
-  profileCard: {
-    backgroundColor: colors.abyss,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.ash,
-    width: '100%',
-    padding: spacing.md,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-  },
-  profileRowLast: {
-    borderBottomWidth: 0,
-  },
-  profileLabel: {
-    fontSize: 14,
-    color: colors.silver,
-  },
-  profileValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.white,
-  },
-  languageButton: {
-    marginTop: spacing.xl,
-    padding: spacing.md,
-  },
-  languageIcon: {
-    fontSize: 28,
+    color: 'rgba(255, 255, 255, 0.5)',
+    letterSpacing: 2,
+    marginBottom: 20,
   },
   logoutButton: {
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
+    marginTop: 'auto',
+    marginBottom: 40,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
   },
   logoutText: {
-    fontSize: 15,
-    color: '#FF3B30',
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '400',
+    color: 'rgba(255, 100, 100, 0.7)',
+    letterSpacing: 1,
   },
   tabBar: {
     flexDirection: 'row',
