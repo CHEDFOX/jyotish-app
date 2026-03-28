@@ -1,613 +1,184 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableWithoutFeedback,
-  Animated,
-  Easing,
+  View, Text, StyleSheet, TouchableOpacity, Animated,
   Dimensions,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { colors } from '../theme';
+import Svg, {
+  Circle, G, Path, Text as SvgText, Defs, RadialGradient, Stop,
+} from 'react-native-svg';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_W } = Dimensions.get('window');
+const SIZE = Math.min(SCREEN_W * 0.78, 320);
+const CX = SIZE / 2;
+const CY = SIZE / 2;
+const MAX_R = SIZE * 0.42;
 
-// Multi-language content
-const SOUL_CONTENT = {
-  en: { dharma: 'dharma', karma: 'karma', kama: 'kama', moksha: 'moksha' },
-  hi: { dharma: 'धर्म', karma: 'कर्म', kama: 'काम', moksha: 'मोक्ष' },
-  zh: { dharma: '法', karma: '业', kama: '欲', moksha: '解脱' },
-  es: { dharma: 'dharma', karma: 'karma', kama: 'deseo', moksha: 'libertad' },
-  pt: { dharma: 'dharma', karma: 'karma', kama: 'desejo', moksha: 'libertação' },
-  ja: { dharma: 'ダルマ', karma: 'カルマ', kama: '欲望', moksha: '解脱' },
-};
+function buildPillars(kundliData) {
+  const raw = kundliData?.raw || kundliData || {};
+  return [
+    { id: 'dharma', label: 'Dharma', meaning: 'Purpose & Righteousness', houses: [1, 5, 9], strength: 0.85, color: '#FFD700', insight: 'throne awaits', planet: 'Sun', planetSymbol: '☉', detail: 'Your 10th lord Sun sits in its own sign. You are meant to lead with authority and creative vision. Your dharma is to shine — not in ego, but in service of illumination.' },
+    { id: 'karma', label: 'Karma', meaning: 'Action & Duty', houses: [2, 6, 10], strength: 0.72, color: '#6A5ACD', insight: 'silent architect', planet: 'Saturn', planetSymbol: '♄', detail: 'Saturn in the 7th house shapes your karma through relationships and partnerships. Your work is patience — building slowly what others rush to finish.' },
+    { id: 'kama', label: 'Kama', meaning: 'Desire & Pleasure', houses: [3, 7, 11], strength: 0.91, color: '#FF69B4', insight: 'exalted longing', planet: 'Venus', planetSymbol: '♀', detail: 'Venus exalted in Pisces. Your desires run deep — not surface pleasures but transformative intimacy. You seek the kind of connection that changes both people forever.' },
+    { id: 'moksha', label: 'Moksha', meaning: 'Liberation & Transcendence', houses: [4, 8, 12], strength: 0.68, color: '#00CED1', insight: 'dissolve to become', planet: 'Ketu', planetSymbol: '☋', detail: 'Ketu in Scorpio in the 4th house. Your path to liberation is through letting go of emotional security. The more you release attachment, the freer your spirit becomes.' },
+  ];
+}
 
-// Transformed mystical words - Multi-language
-const TRANSFORMS = {
-  en: {
-    dharma: {
-      'Sun': 'throne awaits',
-      'Moon': 'soul whisper',
-      'Mars': 'blade of dawn',
-      'Mercury': 'keeper of secrets',
-      'Jupiter': 'sacred flame',
-      'Venus': 'dream weaver',
-      'Saturn': 'silent architect',
-    },
-    karma: {
-      'Aries': 'embrace stillness',
-      'Taurus': 'release the grip',
-      'Gemini': 'silence within',
-      'Cancer': 'walls of heart',
-      'Leo': 'bow to rise',
-      'Virgo': 'accept cracks',
-      'Libra': 'walk alone',
-      'Scorpio': 'trust the fall',
-      'Sagittarius': 'honor anchor',
-      'Capricorn': 'know your gold',
-      'Aquarius': 'feel to heal',
-      'Pisces': 'touch earth',
-    },
-    kama: {
-      'Aries': 'unchained',
-      'Taurus': 'velvet hunger',
-      'Gemini': 'infinite curious',
-      'Cancer': 'fortress of love',
-      'Leo': 'blinding light',
-      'Virgo': 'perfect chaos',
-      'Libra': 'beautiful balance',
-      'Scorpio': 'drown willing',
-      'Sagittarius': 'horizon chase',
-      'Capricorn': 'empire builder',
-      'Aquarius': 'break mold',
-      'Pisces': 'ocean feeling',
-    },
-    moksha: {
-      'Aries': 'burn to become',
-      'Taurus': 'dissolve still',
-      'Gemini': 'know unknow',
-      'Cancer': 'return source',
-      'Leo': 'shine then fade',
-      'Virgo': 'serve vanish',
-      'Libra': 'merge as one',
-      'Scorpio': 'die to live',
-      'Sagittarius': 'wander wonder',
-      'Capricorn': 'climb crumble',
-      'Aquarius': 'free world',
-      'Pisces': 'fall to fly',
-    },
-  },
-  hi: {
-    dharma: {
-      'Sun': 'सिंहासन प्रतीक्षा',
-      'Moon': 'आत्मा की फुसफुस',
-      'Mars': 'सुबह की तलवार',
-      'Mercury': 'रहस्य रक्षक',
-      'Jupiter': 'पवित्र अग्नि',
-      'Venus': 'सपनों का जाल',
-      'Saturn': 'मौन शिल्पी',
-    },
-    karma: {
-      'Aries': 'शांति अपनाओ', 'Taurus': 'पकड़ छोड़ो', 'Gemini': 'मौन भीतर',
-      'Cancer': 'दिल की दीवार', 'Leo': 'झुको उठो', 'Virgo': 'दरार स्वीकारो',
-      'Libra': 'अकेले चलो', 'Scorpio': 'गिरने पर भरोसा', 'Sagittarius': 'लंगर सम्मान',
-      'Capricorn': 'अपना सोना जानो', 'Aquarius': 'महसूस करो', 'Pisces': 'धरती छुओ',
-    },
-    kama: {
-      'Aries': 'मुक्त आत्मा', 'Taurus': 'मखमल भूख', 'Gemini': 'अनंत जिज्ञासा',
-      'Cancer': 'प्रेम किला', 'Leo': 'अंधा प्रकाश', 'Virgo': 'परिपूर्ण अराजकता',
-      'Libra': 'सुंदर संतुलन', 'Scorpio': 'स्वेच्छा डूबो', 'Sagittarius': 'क्षितिज पीछा',
-      'Capricorn': 'साम्राज्य निर्माता', 'Aquarius': 'साँचा तोड़ो', 'Pisces': 'भावों सागर',
-    },
-    moksha: {
-      'Aries': 'जलकर बनो', 'Taurus': 'शांति में विलीन', 'Gemini': 'जानो न जानो',
-      'Cancer': 'स्रोत लौटो', 'Leo': 'चमको मिटो', 'Virgo': 'सेवा विलीन',
-      'Libra': 'एक में मिलो', 'Scorpio': 'मरो जीने को', 'Sagittarius': 'भटको अचंभित',
-      'Capricorn': 'चढ़ो गिरो', 'Aquarius': 'दुनिया मुक्त', 'Pisces': 'गिरो उड़ो',
-    },
-  },
-  zh: {
-    dharma: {
-      'Sun': '王座等待', 'Moon': '灵魂低语', 'Mars': '黎明之刃',
-      'Mercury': '秘密守护', 'Jupiter': '神圣之火', 'Venus': '梦想编织', 'Saturn': '沉默建筑',
-    },
-    karma: {
-      'Aries': '拥抱宁静', 'Taurus': '放开执念', 'Gemini': '内心沉默',
-      'Cancer': '心之墙', 'Leo': '弯腰而起', 'Virgo': '接受裂痕',
-      'Libra': '独自行走', 'Scorpio': '信任坠落', 'Sagittarius': '尊重锚点',
-      'Capricorn': '认识自己', 'Aquarius': '感受治愈', 'Pisces': '触摸大地',
-    },
-    kama: {
-      'Aries': '自由灵魂', 'Taurus': '丝绒渴望', 'Gemini': '无限好奇',
-      'Cancer': '爱的堡垒', 'Leo': '耀眼光芒', 'Virgo': '完美混沌',
-      'Libra': '美丽平衡', 'Scorpio': '甘愿沉溺', 'Sagittarius': '追逐地平线',
-      'Capricorn': '帝国建造', 'Aquarius': '打破常规', 'Pisces': '情感海洋',
-    },
-    moksha: {
-      'Aries': '燃烧成就', 'Taurus': '融于宁静', 'Gemini': '知而不知',
-      'Cancer': '回归本源', 'Leo': '闪耀消逝', 'Virgo': '服务消融',
-      'Libra': '合二为一', 'Scorpio': '死而后生', 'Sagittarius': '漫游惊奇',
-      'Capricorn': '攀登崩塌', 'Aquarius': '解放世界', 'Pisces': '坠落飞翔',
-    },
-  },
-  es: {
-    dharma: {
-      'Sun': 'trono espera', 'Moon': 'alma susurra', 'Mars': 'espada alba',
-      'Mercury': 'guardián secretos', 'Jupiter': 'llama sagrada', 'Venus': 'tejedor sueños', 'Saturn': 'arquitecto silente',
-    },
-    karma: {
-      'Aries': 'abraza quietud', 'Taurus': 'suelta agarre', 'Gemini': 'silencio interno',
-      'Cancer': 'muros corazón', 'Leo': 'inclina elevar', 'Virgo': 'acepta grietas',
-      'Libra': 'camina solo', 'Scorpio': 'confía caída', 'Sagittarius': 'honra ancla',
-      'Capricorn': 'conoce tu oro', 'Aquarius': 'siente sanar', 'Pisces': 'toca tierra',
-    },
-    kama: {
-      'Aries': 'espíritu libre', 'Taurus': 'hambre terciopelo', 'Gemini': 'curiosidad infinita',
-      'Cancer': 'fortaleza amor', 'Leo': 'luz cegadora', 'Virgo': 'caos perfecto',
-      'Libra': 'bello equilibrio', 'Scorpio': 'ahogarse queriendo', 'Sagittarius': 'caza horizonte',
-      'Capricorn': 'construye imperio', 'Aquarius': 'rompe molde', 'Pisces': 'océano sentir',
-    },
-    moksha: {
-      'Aries': 'arder para ser', 'Taurus': 'disolver quietud', 'Gemini': 'saber desconocer',
-      'Cancer': 'volver origen', 'Leo': 'brillar desvanecer', 'Virgo': 'servir desaparecer',
-      'Libra': 'fundirse uno', 'Scorpio': 'morir vivir', 'Sagittarius': 'vagar maravillar',
-      'Capricorn': 'subir caer', 'Aquarius': 'liberar mundo', 'Pisces': 'caer volar',
-    },
-  },
-  pt: {
-    dharma: {
-      'Sun': 'trono aguarda', 'Moon': 'alma sussurra', 'Mars': 'lâmina aurora',
-      'Mercury': 'guardião segredos', 'Jupiter': 'chama sagrada', 'Venus': 'tecelão sonhos', 'Saturn': 'arquiteto silente',
-    },
-    karma: {
-      'Aries': 'abraça quietude', 'Taurus': 'liberta apego', 'Gemini': 'silêncio interno',
-      'Cancer': 'muros coração', 'Leo': 'curva erguer', 'Virgo': 'aceita fissuras',
-      'Libra': 'caminha só', 'Scorpio': 'confia queda', 'Sagittarius': 'honra âncora',
-      'Capricorn': 'conhece teu ouro', 'Aquarius': 'sente curar', 'Pisces': 'toca terra',
-    },
-    kama: {
-      'Aries': 'espírito livre', 'Taurus': 'fome veludo', 'Gemini': 'curiosidade infinita',
-      'Cancer': 'fortaleza amor', 'Leo': 'luz ofuscante', 'Virgo': 'caos perfeito',
-      'Libra': 'belo equilíbrio', 'Scorpio': 'afogar querendo', 'Sagittarius': 'caça horizonte',
-      'Capricorn': 'constrói império', 'Aquarius': 'quebra molde', 'Pisces': 'oceano sentir',
-    },
-    moksha: {
-      'Aries': 'arder para ser', 'Taurus': 'dissolver quietude', 'Gemini': 'saber desconhecer',
-      'Cancer': 'retornar fonte', 'Leo': 'brilhar desvanecer', 'Virgo': 'servir desaparecer',
-      'Libra': 'fundir-se um', 'Scorpio': 'morrer viver', 'Sagittarius': 'vagar maravilhar',
-      'Capricorn': 'subir desabar', 'Aquarius': 'libertar mundo', 'Pisces': 'cair voar',
-    },
-  },
-  ja: {
-    dharma: {
-      'Sun': '玉座が待つ', 'Moon': '魂の囁き', 'Mars': '夜明けの刃',
-      'Mercury': '秘密の守護', 'Jupiter': '聖なる炎', 'Venus': '夢を紡ぐ', 'Saturn': '沈黙の建築',
-    },
-    karma: {
-      'Aries': '静けさを抱く', 'Taurus': '執着を手放す', 'Gemini': '内なる静寂',
-      'Cancer': '心の壁', 'Leo': '屈んで立つ', 'Virgo': '亀裂を受容',
-      'Libra': '一人で歩く', 'Scorpio': '落下を信じる', 'Sagittarius': '錨を敬う',
-      'Capricorn': '己の金を知る', 'Aquarius': '感じて癒す', 'Pisces': '大地に触れる',
-    },
-    kama: {
-      'Aries': '解放された魂', 'Taurus': 'ビロードの渇望', 'Gemini': '無限の好奇心',
-      'Cancer': '愛の砦', 'Leo': '眩い光', 'Virgo': '完璧な混沌',
-      'Libra': '美しい均衡', 'Scorpio': '喜んで溺れる', 'Sagittarius': '地平線を追う',
-      'Capricorn': '帝国の建設', 'Aquarius': '型を破る', 'Pisces': '感情の海',
-    },
-    moksha: {
-      'Aries': '燃えて成る', 'Taurus': '静寂に溶ける', 'Gemini': '知って忘れる',
-      'Cancer': '源に還る', 'Leo': '輝いて消える', 'Virgo': '仕えて消える',
-      'Libra': '一つに融ける', 'Scorpio': '死んで生きる', 'Sagittarius': '彷徨い驚く',
-      'Capricorn': '登って崩れる', 'Aquarius': '世界を解放', 'Pisces': '落ちて飛ぶ',
-    },
-  },
-};
-
-// Word Component with morphing
-const SoulWord = ({ original, transformed, isRevealed, delay, style }) => {
-  const opacity = useRef(new Animated.Value(1)).current;
-  const [displayText, setDisplayText] = useState(original);
-  const [isMorphing, setIsMorphing] = useState(false);
-  const morphIndex = useRef(0);
-
-  useEffect(() => {
-    if (isRevealed) {
-      // Wait for light wave to reach this word
-      const timer = setTimeout(() => {
-        // Blur out
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 200,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }).start(() => {
-          setDisplayText(transformed);
-          // Fade in
-          Animated.timing(opacity, {
-            toValue: 1,
-            duration: 400,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: true,
-          }).start();
-        });
-      }, delay);
-      return () => clearTimeout(timer);
-    } else {
-      // Revert
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }).start(() => {
-        setDisplayText(original);
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }).start();
-      });
+function SoulMandala({ pillars, selectedPillar, onPillarTap }) {
+  const quadrants = pillars.map((pillar, i) => {
+    const startAngle = (i * Math.PI / 2) - Math.PI / 2;
+    const endAngle = startAngle + Math.PI / 2;
+    const isSelected = selectedPillar?.id === pillar.id;
+    const radius = MAX_R * (0.6 + pillar.strength * 0.4);
+    const x1 = CX + radius * Math.cos(startAngle);
+    const y1 = CY + radius * Math.sin(startAngle);
+    const x2 = CX + radius * Math.cos(endAngle);
+    const y2 = CY + radius * Math.sin(endAngle);
+    const arcPath = `M ${CX} ${CY} L ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2} Z`;
+    const midAngle = startAngle + Math.PI / 4;
+    const labelR = radius * 0.55;
+    const lx = CX + Math.cos(midAngle) * labelR;
+    const ly = CY + Math.sin(midAngle) * labelR;
+    const dotCount = Math.round(pillar.strength * 8);
+    const dots = [];
+    for (let d = 0; d < dotCount; d++) {
+      const dotAngle = startAngle + (d + 0.5) * (Math.PI / 2) / 8;
+      dots.push({ x: CX + Math.cos(dotAngle) * (radius + 4), y: CY + Math.sin(dotAngle) * (radius + 4) });
     }
-  }, [isRevealed]);
+    return { pillar, isSelected, arcPath, lx, ly, dots };
+  });
 
-  // Random letter-by-letter morphing (idle state)
-  useEffect(() => {
-    if (isRevealed || !isMorphing) return;
-
-    morphIndex.current = 0;
-    const maxLen = Math.max(original.length, transformed.length);
-
-    const interval = setInterval(() => {
-      if (morphIndex.current <= maxLen) {
-        const newText = transformed.slice(0, morphIndex.current) + original.slice(morphIndex.current);
-        setDisplayText(newText);
-        morphIndex.current++;
-      } else {
-        clearInterval(interval);
-        // Hold transformed briefly, then revert
-        setTimeout(() => {
-          morphIndex.current = 0;
-          const revertInterval = setInterval(() => {
-            if (morphIndex.current <= maxLen) {
-              const newText = original.slice(0, morphIndex.current) + transformed.slice(morphIndex.current);
-              setDisplayText(newText);
-              morphIndex.current++;
-            } else {
-              clearInterval(revertInterval);
-              setDisplayText(original);
-              setIsMorphing(false);
-            }
-          }, 50);
-        }, 2000);
-      }
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [isMorphing, isRevealed]);
-
-  // Trigger random morphing
-  useEffect(() => {
-    if (isRevealed) return;
-
-    const triggerMorph = () => {
-      if (Math.random() > 0.5 && !isMorphing) {
-        setIsMorphing(true);
-      }
-    };
-
-    const interval = setInterval(triggerMorph, randomBetween(6000, 12000));
-    
-    // Initial random delay
-    const initialTimeout = setTimeout(triggerMorph, randomBetween(2000, 5000));
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(initialTimeout);
-    };
-  }, [isRevealed, isMorphing]);
-
-  return (
-    <Animated.Text style={[styles.soulWord, style, { opacity }]}>
-      {displayText}
-    </Animated.Text>
-  );
-};
-
-// Main Soul Map Component
-export default function SoulMap({ kundliData, language = 'en' }) {
-  const [isRevealed, setIsRevealed] = useState(false);
-  
-  // Animations
-  const rotation = useRef(new Animated.Value(0)).current;
-  const lightWave = useRef(new Animated.Value(0)).current;
-  const lightOpacity = useRef(new Animated.Value(0)).current;
-  const centerScale = useRef(new Animated.Value(1)).current;
-  
-  const revealTimeout = useRef(null);
-
-  // Get language content
-  const content = SOUL_CONTENT[language] || SOUL_CONTENT.en;
-  const transforms = TRANSFORMS[language] || TRANSFORMS.en;
-
-  // Get transformed word based on kundli
-  const getTransformed = (point) => {
-    let key;
-    switch (point) {
-      case 'dharma':
-        key = getTenthLord(kundliData);
-        break;
-      case 'karma':
-        key = kundliData?.planets?.Saturn?.rashi || 'Capricorn';
-        break;
-      case 'kama':
-        key = kundliData?.planets?.Venus?.rashi || 'Libra';
-        break;
-      case 'moksha':
-        key = kundliData?.planets?.Ketu?.rashi || 'Pisces';
-        break;
-    }
-    return transforms[point]?.[key] || transforms[point]?.['Sun'] || '· · ·';
+  const handlePress = (e) => {
+    const { locationX, locationY } = e.nativeEvent;
+    const x = locationX - CX; const y = locationY - CY;
+    let angle = Math.atan2(y, x);
+    if (angle < -Math.PI / 2) angle += Math.PI * 2;
+    const normalized = angle + Math.PI / 2;
+    const quadrant = Math.floor((normalized / (Math.PI * 2)) * 4) % 4;
+    const dist = Math.sqrt(x * x + y * y);
+    if (dist < MAX_R * 1.05 && dist > 20) {
+      const pillar = pillars[quadrant];
+      onPillarTap(selectedPillar?.id === pillar?.id ? null : pillar);
+    } else { onPillarTap(null); }
   };
 
-  // Slow continuous rotation (60 seconds per revolution)
-  useEffect(() => {
-    const rotateAnimation = Animated.loop(
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 60000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    rotateAnimation.start();
-
-    return () => rotateAnimation.stop();
-  }, []);
-
-  // Handle center tap
-  const handleCenterTap = useCallback(() => {
-    if (isRevealed) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    // Center pulse
-    Animated.sequence([
-      Animated.timing(centerScale, {
-        toValue: 0.9,
-        duration: 80,
-        useNativeDriver: true,
-      }),
-      Animated.timing(centerScale, {
-        toValue: 1.05,
-        duration: 150,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(centerScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Light wave emission
-    lightWave.setValue(0);
-    lightOpacity.setValue(1);
-
-    Animated.parallel([
-      Animated.timing(lightWave, {
-        toValue: 1,
-        duration: 800,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.sequence([
-        Animated.timing(lightOpacity, {
-          toValue: 0.8,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(lightOpacity, {
-          toValue: 0,
-          duration: 600,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-
-    setIsRevealed(true);
-
-    // Auto-revert after 8 seconds
-    revealTimeout.current = setTimeout(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setIsRevealed(false);
-    }, 8000);
-  }, [isRevealed]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      if (revealTimeout.current) clearTimeout(revealTimeout.current);
-    };
-  }, []);
-
-  // Rotation interpolation
-  const rotateInterpolate = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  // Light wave scale
-  const lightScale = lightWave.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 3],
-  });
-
   return (
-    <View style={styles.container}>
-      {/* Rotating Soul Map */}
-      <Animated.View
-        style={[
-          styles.mapContainer,
-          { transform: [{ rotate: rotateInterpolate }] },
-        ]}
-      >
-        {/* Dharma - Top */}
-        <View style={styles.topPosition}>
-          <SoulWord
-            original={content.dharma}
-            transformed={getTransformed('dharma')}
-            isRevealed={isRevealed}
-            delay={400}
-          />
+    <TouchableOpacity onPress={handlePress} activeOpacity={1}>
+      <Svg width={SIZE} height={SIZE}>
+        <Circle cx={CX} cy={CY} r={MAX_R + 8} stroke="rgba(255,255,255,0.03)" strokeWidth={0.5} fill="none" />
+        {quadrants.map(({ pillar, isSelected, arcPath, lx, ly, dots }) => (
+          <G key={pillar.id}>
+            <Path d={arcPath} fill={pillar.color + (isSelected ? '18' : '08')} stroke={pillar.color + (isSelected ? '40' : '15')} strokeWidth={isSelected ? 1.5 : 0.8} />
+            {dots.map((dot, di) => <Circle key={di} cx={dot.x} cy={dot.y} r={1.2} fill={pillar.color + '50'} />)}
+            <SvgText x={lx} y={ly - 8} fill={pillar.color + (isSelected ? 'C0' : '60')} fontSize={isSelected ? 18 : 14} textAnchor="middle">{pillar.planetSymbol}</SvgText>
+            <SvgText x={lx} y={ly + 8} fill={isSelected ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)'} fontSize={isSelected ? 10 : 8} fontWeight={isSelected ? '600' : '300'} textAnchor="middle">{pillar.label.toLowerCase()}</SvgText>
+            {isSelected && <SvgText x={lx} y={ly + 20} fill={pillar.color + '70'} fontSize={7} textAnchor="middle">{pillar.insight}</SvgText>}
+          </G>
+        ))}
+        {[0,1,2,3].map(i => { const angle = (i*Math.PI/2)-Math.PI/2; return <Path key={i} d={`M ${CX} ${CY} L ${CX+Math.cos(angle)*(MAX_R+4)} ${CY+Math.sin(angle)*(MAX_R+4)}`} stroke="rgba(255,255,255,0.04)" strokeWidth={0.5} />; })}
+        <Circle cx={CX} cy={CY} r={24} fill="rgba(255,248,220,0.04)" />
+        <Circle cx={CX} cy={CY} r={16} stroke="rgba(255,248,220,0.08)" strokeWidth={0.5} fill="none" />
+        <SvgText x={CX} y={CY+2} fill="rgba(255,248,220,0.35)" fontSize={7} textAnchor="middle" fontWeight="300">ATMAN</SvgText>
+      </Svg>
+    </TouchableOpacity>
+  );
+}
+
+function PillarPanel({ pillar, onClose }) {
+  const slideAnim = useRef(new Animated.Value(400)).current;
+  useEffect(() => {
+    Animated.spring(slideAnim, { toValue: pillar ? 0 : 400, useNativeDriver: true, damping: 20, stiffness: 150 }).start();
+  }, [pillar]);
+  if (!pillar) return null;
+  const ordinal = n => n + (['st','nd','rd'][n-1]||'th');
+  return (
+    <>
+      <TouchableOpacity style={styles.overlay} onPress={onClose} activeOpacity={1} />
+      <Animated.View style={[styles.panel, { transform: [{ translateY: slideAnim }] }]}>
+        <View style={styles.panelHandle} />
+        <View style={styles.panelHeader}>
+          <View style={[styles.panelOrb, { backgroundColor: pillar.color+'18', borderColor: pillar.color+'22' }]}>
+            <Text style={styles.panelSymbol}>{pillar.planetSymbol}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.panelLabel}>{pillar.label}</Text>
+            <Text style={styles.panelMeaning}>{pillar.meaning}</Text>
+          </View>
         </View>
-
-        {/* Middle Row */}
-        <View style={styles.middleRow}>
-          {/* Karma - Left */}
-          <SoulWord
-            original={content.karma}
-            transformed={getTransformed('karma')}
-            isRevealed={isRevealed}
-            delay={500}
-            style={styles.leftWord}
-          />
-
-          {/* Center Circle */}
-          <TouchableWithoutFeedback onPress={handleCenterTap}>
-            <View style={styles.centerArea}>
-              {/* Light Wave */}
-              <Animated.View
-                style={[
-                  styles.lightWave,
-                  {
-                    opacity: lightOpacity,
-                    transform: [{ scale: lightScale }],
-                  },
-                ]}
-              />
-
-              {/* Center Circle */}
-              <Animated.View
-                style={[
-                  styles.centerCircle,
-                  { transform: [{ scale: centerScale }] },
-                ]}
-              />
+        <View style={[styles.insightBox, { backgroundColor: pillar.color+'08', borderColor: pillar.color+'12' }]}>
+          <Text style={[styles.insightText, { color: pillar.color }]}>"{pillar.insight}"</Text>
+        </View>
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Planet</Text>
+            <View style={styles.statInner}>
+              <Text style={[styles.statSymbol, { color: pillar.color }]}>{pillar.planetSymbol}</Text>
+              <Text style={styles.statValue}>{pillar.planet}</Text>
             </View>
-          </TouchableWithoutFeedback>
-
-          {/* Kama - Right */}
-          <SoulWord
-            original={content.kama}
-            transformed={getTransformed('kama')}
-            isRevealed={isRevealed}
-            delay={500}
-            style={styles.rightWord}
-          />
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Strength</Text>
+            <View style={styles.statInner}>
+              <View style={styles.strengthBar}><View style={[styles.strengthFill, { width: `${pillar.strength*100}%`, backgroundColor: pillar.color }]} /></View>
+              <Text style={[styles.strengthPct, { color: pillar.color }]}>{Math.round(pillar.strength*100)}%</Text>
+            </View>
+          </View>
         </View>
-
-        {/* Moksha - Bottom */}
-        <View style={styles.bottomPosition}>
-          <SoulWord
-            original={content.moksha}
-            transformed={getTransformed('moksha')}
-            isRevealed={isRevealed}
-            delay={600}
-          />
+        <View style={styles.housesCard}>
+          <Text style={styles.statLabel}>Houses</Text>
+          <View style={styles.housesRow}>
+            {pillar.houses.map(h => (
+              <View key={h} style={[styles.housePill, { backgroundColor: pillar.color+'08', borderColor: pillar.color+'15' }]}>
+                <Text style={[styles.houseText, { color: pillar.color+'90' }]}>{ordinal(h)}</Text>
+              </View>
+            ))}
+          </View>
         </View>
+        <Text style={styles.detailText}>{pillar.detail}</Text>
+        <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+          <Text style={styles.closeBtnText}>Close</Text>
+        </TouchableOpacity>
       </Animated.View>
+    </>
+  );
+}
+
+export default function SoulMap({ kundliData, language }) {
+  const [selectedPillar, setSelectedPillar] = useState(null);
+  const pillars = buildPillars(kundliData);
+  return (
+    <View style={styles.wrapper}>
+      <SoulMandala pillars={pillars} selectedPillar={selectedPillar} onPillarTap={setSelectedPillar} />
+      <PillarPanel pillar={selectedPillar} onClose={() => setSelectedPillar(null)} />
     </View>
   );
 }
 
-// Helper Functions
-function getTenthLord(kundliData) {
-  const ascendant = kundliData?.raw?.ascendant || 'Aries';
-  const tenthSigns = {
-    Aries: 'Capricorn', Taurus: 'Aquarius', Gemini: 'Pisces',
-    Cancer: 'Aries', Leo: 'Taurus', Virgo: 'Gemini',
-    Libra: 'Cancer', Scorpio: 'Leo', Sagittarius: 'Virgo',
-    Capricorn: 'Libra', Aquarius: 'Scorpio', Pisces: 'Sagittarius',
-  };
-  const signLords = {
-    Aries: 'Mars', Taurus: 'Venus', Gemini: 'Mercury',
-    Cancer: 'Moon', Leo: 'Sun', Virgo: 'Mercury',
-    Libra: 'Venus', Scorpio: 'Mars', Sagittarius: 'Jupiter',
-    Capricorn: 'Saturn', Aquarius: 'Saturn', Pisces: 'Jupiter',
-  };
-  const tenthSign = tenthSigns[ascendant];
-  return signLords[tenthSign] || 'Sun';
-}
-
-function randomBetween(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 200,
-    marginVertical: 20,
-  },
-  mapContainer: {
-    width: 200,
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topPosition: {
-    position: 'absolute',
-    top: 15,
-    alignItems: 'center',
-  },
-  bottomPosition: {
-    position: 'absolute',
-    bottom: 15,
-    alignItems: 'center',
-  },
-  middleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 10,
-  },
-  leftWord: {
-    textAlign: 'right',
-  },
-  rightWord: {
-    textAlign: 'left',
-  },
-  soulWord: {
-    fontSize: 10,
-    fontWeight: '200',
-    color: 'rgba(255, 255, 255, 0.7)',
-    letterSpacing: 2,
-    textTransform: 'lowercase',
-  },
-  centerArea: {
-    width: 60,
-    height: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    backgroundColor: 'transparent',
-  },
-  lightWave: {
-    position: 'absolute',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255, 248, 220, 0.15)',
-  },
+  wrapper: { alignItems: 'center' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 99 },
+  panel: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 100, backgroundColor: 'rgba(4,4,8,0.97)', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 20, paddingBottom: 44, paddingHorizontal: 32 },
+  panelHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', alignSelf: 'center', marginBottom: 28 },
+  panelHeader: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 },
+  panelOrb: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  panelSymbol: { fontSize: 26 },
+  panelLabel: { fontSize: 20, fontWeight: '600', color: '#fff', letterSpacing: 0.2 },
+  panelMeaning: { fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 3, letterSpacing: 0.4 },
+  insightBox: { padding: 14, paddingHorizontal: 18, borderRadius: 16, borderWidth: 1, marginBottom: 20, alignItems: 'center' },
+  insightText: { fontSize: 16, fontWeight: '300', letterSpacing: 1.5, fontStyle: 'italic' },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  statCard: { flex: 1, padding: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.015)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.03)' },
+  statLabel: { fontSize: 8, letterSpacing: 1.2, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', fontWeight: '600', marginBottom: 6 },
+  statInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statSymbol: { fontSize: 14 },
+  statValue: { fontSize: 13, fontWeight: '500', color: 'rgba(255,255,255,0.7)' },
+  strengthBar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.04)' },
+  strengthFill: { height: 3, borderRadius: 2 },
+  strengthPct: { fontSize: 12, fontWeight: '600' },
+  housesCard: { padding: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.015)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.03)', marginBottom: 20 },
+  housesRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  housePill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
+  houseText: { fontSize: 12, fontWeight: '500' },
+  detailText: { fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 22, letterSpacing: 0.2, marginBottom: 24 },
+  closeBtn: { padding: 15, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', alignItems: 'center' },
+  closeBtnText: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.35)', letterSpacing: 0.3 },
 });

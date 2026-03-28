@@ -18,10 +18,13 @@
       "buildNumber": "1",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Jyotish AI needs microphone access for voice conversations with the Oracle.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -41,7 +44,8 @@
         {
           "microphonePermission": "Jyotish AI needs microphone access for voice conversations with the Oracle."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 
-const SUPABASE_URL = 'https://gknfuteifzdmebsejlmc.supabase.co';
+const SUPABASE_URL = 'https://auth.plutto.space';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrbmZ1dGVpZnpkbWVic2VqbG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MjQ4NTQsImV4cCI6MjA4NjUwMDg1NH0.mZWdCCLuPBeUx79kVfGK9kAOtkuNg-3w3zB6tYBEXB4';
 
 const ExpoSecureStoreAdapter = {

@@ -14,127 +14,156 @@ import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+const isLatinScript = (lang) => ['en', 'es', 'pt'].includes(lang);
+
 const CONTENT = {
   en: {
     title: 'See What The Stars',
     subtitle: 'Hold For You',
     button: 'Turn The Key',
-    welcome: 'You Were Meant To Be Here',
+    welcome: ['You', 'Were', 'Meant', 'To', 'Be', 'Here'],
   },
   hi: {
-    title: 'जानिए सितारे',
-    subtitle: 'क्या कहते हैं',
-    button: 'चाबी घुमाएं',
-    welcome: 'आप यहां के लिए बने थे',
+    title: 'तारों ने संजो रखा है',
+    subtitle: 'आपके लिए कुछ',
+    button: 'कुंजी घुमाएँ',
+    welcome: ['आप', 'यहीं', 'होने', 'थे'],
   },
   zh: {
-    title: '了解星星',
-    subtitle: '为你准备了什么',
+    title: '星辰为你守护着',
+    subtitle: '属于你的一切',
     button: '转动钥匙',
-    welcome: '你注定属于这里',
+    welcome: ['你', '本就', '在', '这里'],
   },
   es: {
-    title: 'Descubre Lo Que',
-    subtitle: 'Las Estrellas Guardan',
-    button: 'Gira La Llave',
-    welcome: 'Estabas Destinado A Estar Aquí',
+    title: 'Las estrellas guardan',
+    subtitle: 'algo para ti',
+    button: 'Gira la llave',
+    welcome: ['Tú', 'ibas', 'a', 'estar', 'aquí'],
   },
   pt: {
-    title: 'Descubra O Que',
-    subtitle: 'As Estrelas Reservam',
-    button: 'Gire A Chave',
-    welcome: 'Você Estava Destinado A Estar Aqui',
+    title: 'As estrelas guardam',
+    subtitle: 'algo para você',
+    button: 'Gire a chave',
+    welcome: ['Você', 'ia', 'estar', 'aqui'],
   },
   ja: {
-    title: '星が何を',
-    subtitle: '示しているか知る',
+    title: '星があなたのために',
+    subtitle: '何かを守っている',
     button: '鍵を回す',
-    welcome: 'あなたはここにいる運命でした',
+    welcome: ['あなたは', 'ここに', 'いる', 'はずだった'],
   },
 };
 
-// Blackhole Pull Animation - Text appears then gets sucked into center
-const BlackholeAnimation = ({ text, onComplete }) => {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(1.2)).current;
-  const translateY = useRef(new Animated.Value(-50)).current;
-  
-  // For the "pull" effect
-  const pullScale = useRef(new Animated.Value(1)).current;
-  const pullOpacity = useRef(new Animated.Value(1)).current;
+// Welcome — words appear centered one by one, hold, then drift apart and fade
+const WelcomeReveal = ({ words, onComplete, language }) => {
+  const latin = isLatinScript(language);
+  const wordAnims = useRef(
+    words.map(() => ({
+      opacity: new Animated.Value(0),
+      translateY: new Animated.Value(8),
+      translateX: new Animated.Value(0),
+      scale: new Animated.Value(1),
+    }))
+  ).current;
+
+  const anchorIndex = Math.floor(words.length / 2);
 
   useEffect(() => {
-    // Step 1: Text fades in and settles
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 600,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1,
-        duration: 600,
-        easing: Easing.out(Easing.back(1.5)),
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 600,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Step 2: Pause for reading (1.8 seconds)
+    const staggerDelay = 400;
+
+    words.forEach((_, i) => {
       setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        
-        // Step 3: BLACKHOLE PULL - Fast suck into center
         Animated.parallel([
-          // Scale down rapidly (sucked in)
-          Animated.timing(pullScale, {
-            toValue: 0,
-            duration: 350,
-            easing: Easing.in(Easing.exp), // Exponential = slow start, VERY fast end
+          Animated.timing(wordAnims[i].opacity, {
+            toValue: 1,
+            duration: 500,
+            easing: Easing.out(Easing.ease),
             useNativeDriver: true,
           }),
-          // Fade out at the end
-          Animated.timing(pullOpacity, {
+          Animated.timing(wordAnims[i].translateY, {
             toValue: 0,
-            duration: 200,
-            delay: 150,
+            duration: 500,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }, i * staggerDelay);
+    });
+
+    const allAppearedTime = words.length * staggerDelay + 500;
+    const holdTime = allAppearedTime + 2500;
+
+    setTimeout(() => {
+      const driftAnims = words.map((_, i) => {
+        const randomX = (Math.random() - 0.5) * SCREEN_WIDTH * 0.6;
+        const randomY = (Math.random() - 0.5) * 60;
+
+        return Animated.parallel([
+          Animated.timing(wordAnims[i].opacity, {
+            toValue: 0,
+            duration: 1000,
             easing: Easing.in(Easing.ease),
             useNativeDriver: true,
           }),
-        ]).start(() => {
-          // Step 4: Go to next screen
-          setTimeout(() => {
-            if (onComplete) onComplete();
-          }, 150);
-        });
-      }, 1800);
-    });
+          Animated.timing(wordAnims[i].translateX, {
+            toValue: randomX,
+            duration: 1200,
+            easing: Easing.in(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(wordAnims[i].translateY, {
+            toValue: randomY,
+            duration: 1200,
+            easing: Easing.in(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(wordAnims[i].scale, {
+            toValue: 0.6,
+            duration: 1200,
+            easing: Easing.in(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]);
+      });
+
+      Animated.parallel(driftAnims).start(() => {
+        setTimeout(() => {
+          if (onComplete) onComplete();
+        }, 300);
+      });
+    }, holdTime);
   }, []);
 
   return (
     <View style={styles.welcomeContainer}>
-      <Animated.Text
-        style={[
-          styles.welcomeText,
-          {
-            opacity: Animated.multiply(opacity, pullOpacity),
-            transform: [
-              { translateY },
-              { scale: Animated.multiply(scale, pullScale) },
-            ],
-          },
-        ]}
-      >
-        {text}
-      </Animated.Text>
-      
-      {/* Blackhole center point (invisible but adds to effect) */}
-      <View style={styles.blackholeCenter} />
+      <View style={styles.welcomeTextBlock}>
+        {words.map((word, i) => {
+          const isAnchor = i === anchorIndex;
+          return (
+            <Animated.Text
+              key={i}
+              style={[
+                styles.welcomeWord,
+                {
+                  fontSize: isAnchor ? 30 : 24,
+                  color: isAnchor ? colors.gold : 'rgba(255,255,255,0.85)',
+                  fontWeight: latin ? '200' : '400',
+                  letterSpacing: latin ? (isAnchor ? 4 : 2) : 0,
+                  opacity: wordAnims[i].opacity,
+                  transform: [
+                    { translateY: wordAnims[i].translateY },
+                    { translateX: wordAnims[i].translateX },
+                    { scale: wordAnims[i].scale },
+                  ],
+                },
+              ]}
+            >
+              {word}
+            </Animated.Text>
+          );
+        })}
+      </View>
     </View>
   );
 };
@@ -145,7 +174,10 @@ export default function PaymentScreen({ onComplete, language = 'en' }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const keyRotation = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
+  const buttonDrop = useRef(new Animated.Value(0)).current;
   const content = CONTENT[language] || CONTENT.en;
+  const latin = isLatinScript(language);
+  const textStyle = latin ? {} : { letterSpacing: 0, fontWeight: '400' };
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -157,105 +189,91 @@ export default function PaymentScreen({ onComplete, language = 'en' }) {
 
   const handlePayment = async () => {
     if (isKeyTurning) return;
-    
     setIsKeyTurning(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Button press feedback
+
     Animated.timing(buttonScale, {
       toValue: 0.95,
       duration: 100,
       useNativeDriver: true,
     }).start();
 
-    // Step 1: Little pause (400ms)
+    // Step 1: Pause
     setTimeout(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      
-      // Step 2: Slow tilt 30° like door handle (from right side)
+
+      // Step 2: Rotate 90 degrees — like turning a real key
       Animated.timing(keyRotation, {
         toValue: 1,
-        duration: 600, // Slow rotation
+        duration: 800,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
-      }).start(async () => {
+      }).start(() => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        
-        await markUserAsPaid();
-        
-        // Small pause after key turned
+
+        // Step 3: Drop straight down off screen
         setTimeout(() => {
-          // Fade out everything
-          Animated.timing(fadeAnim, {
-            toValue: 0,
-            duration: 400,
-            useNativeDriver: true,
-          }).start(() => {
+          Animated.parallel([
+            Animated.timing(buttonDrop, {
+              toValue: 1,
+              duration: 500,
+              easing: Easing.in(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]).start(async () => {
+            await markUserAsPaid();
             setPaymentDone(true);
           });
-        }, 300);
+        }, 200);
       });
     }, 400);
   };
 
-  // Key rotation interpolation - tilts from right side like door handle
   const buttonRotate = keyRotation.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '-30deg'], // Negative = tilts left (handle going down on right)
+    outputRange: ['0deg', '-90deg'],
   });
-
-  // Pivot point shift - makes it rotate from the right edge
   const buttonTranslateX = keyRotation.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -15],
+    outputRange: [0, -20],
   });
-
-  const buttonTranslateY = keyRotation.interpolate({
+  const dropY = buttonDrop.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 5],
+    outputRange: [0, SCREEN_HEIGHT],
+  });
+  const rotateY = keyRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 10],
   });
 
   if (paymentDone) {
     return (
       <View style={styles.container}>
-        <BlackholeAnimation
-          text={content.welcome}
-          onComplete={onComplete}
-        />
+        <WelcomeReveal words={content.welcome} onComplete={onComplete} language={language} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Animated.View
-        style={[
-          styles.content,
-          { opacity: fadeAnim },
-        ]}
-      >
-        <Text style={styles.title}>{content.title}</Text>
-        <Text style={styles.subtitle}>{content.subtitle}</Text>
-
-        <TouchableOpacity 
-          activeOpacity={1}
-          onPress={handlePayment}
-          disabled={isKeyTurning}
-        >
-          <Animated.View 
-            style={[
-              styles.payButton,
-              {
-                transform: [
-                  { scale: buttonScale },
-                  { rotate: buttonRotate },
-                  { translateX: buttonTranslateX },
-                  { translateY: buttonTranslateY },
-                ],
-              },
-            ]}
-          >
-            <Text style={styles.payButtonText}>{content.button}</Text>
+      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        <Text style={[styles.title, textStyle]}>{content.title}</Text>
+        <Text style={[styles.subtitle, textStyle]}>{content.subtitle}</Text>
+        <TouchableOpacity activeOpacity={1} onPress={handlePayment} disabled={isKeyTurning}>
+          <Animated.View style={[styles.payButton, {
+            transform: [
+              { scale: buttonScale },
+              { rotate: buttonRotate },
+              { translateX: buttonTranslateX },
+              { translateY: Animated.add(rotateY, dropY) },
+            ],
+          }]}>
+            <Text style={[styles.payButtonText, !latin && { letterSpacing: 0 }]}>{content.button}</Text>
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
@@ -271,40 +289,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
-  content: {
-    alignItems: 'center',
-  },
+  content: { alignItems: 'center' },
   title: {
     fontSize: 28,
-    fontWeight: '300',
+    fontWeight: '200',
     color: colors.white,
     textAlign: 'center',
     letterSpacing: 1,
   },
   subtitle: {
     fontSize: 28,
-    fontWeight: '300',
+    fontWeight: '200',
     color: colors.white,
     textAlign: 'center',
     letterSpacing: 1,
     marginTop: spacing.xs,
   },
   payButton: {
-    marginTop: spacing.xxl * 2.5,
+    marginTop: spacing.xxl * 3,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xxl * 1.5,
     backgroundColor: colors.white,
     borderRadius: 30,
-    // Shadow for depth
     shadowColor: '#fff',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
     elevation: 5,
   },
   payButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.void,
     letterSpacing: 1,
   },
@@ -314,19 +329,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
-  welcomeText: {
-    fontSize: 26,
-    fontWeight: '300',
-    color: colors.white,
-    textAlign: 'center',
-    letterSpacing: 2,
-    lineHeight: 40,
+  welcomeTextBlock: {
+    alignItems: 'center',
+    gap: 6,
   },
-  blackholeCenter: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'transparent',
+  welcomeWord: {
+    textAlign: 'center',
   },
 });

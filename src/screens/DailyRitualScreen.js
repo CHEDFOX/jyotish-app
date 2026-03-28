@@ -13,6 +13,8 @@ import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+const isLatinScript = (lang) => ['en', 'es', 'pt'].includes(lang);
+
 const CONTENT = {
   en: {
     welcome: 'Welcome',
@@ -61,34 +63,10 @@ const CONTENT = {
       'POWERFUL': 'बुद्धि से नेतृत्व करें',
     },
   },
-  zh: {
-    welcome: '欢迎',
-    morning: '早上好',
-    afternoon: '下午好',
-    evening: '晚上好',
-    suggestions: { 'DEFAULT': '相信旅程' },
-  },
-  es: {
-    welcome: 'Bienvenido',
-    morning: 'Buenos Días',
-    afternoon: 'Buenas Tardes',
-    evening: 'Buenas Noches',
-    suggestions: { 'DEFAULT': 'Confía en el viaje' },
-  },
-  pt: {
-    welcome: 'Bem-vindo',
-    morning: 'Bom Dia',
-    afternoon: 'Boa Tarde',
-    evening: 'Boa Noite',
-    suggestions: { 'DEFAULT': 'Confie na jornada' },
-  },
-  ja: {
-    welcome: 'ようこそ',
-    morning: 'おはようございます',
-    afternoon: 'こんにちは',
-    evening: 'こんばんは',
-    suggestions: { 'DEFAULT': '旅を信じて' },
-  },
+  zh: { welcome: '欢迎', morning: '早上好', afternoon: '下午好', evening: '晚上好', suggestions: { 'DEFAULT': '相信旅程' } },
+  es: { welcome: 'Bienvenido', morning: 'Buenos Días', afternoon: 'Buenas Tardes', evening: 'Buenas Noches', suggestions: { 'DEFAULT': 'Confía en el viaje' } },
+  pt: { welcome: 'Bem-vindo', morning: 'Bom Dia', afternoon: 'Boa Tarde', evening: 'Boa Noite', suggestions: { 'DEFAULT': 'Confie na jornada' } },
+  ja: { welcome: 'ようこそ', morning: 'おはようございます', afternoon: 'こんにちは', evening: 'こんばんは', suggestions: { 'DEFAULT': '旅を信じて' } },
 };
 
 export default function DailyRitualScreen({ 
@@ -100,15 +78,13 @@ export default function DailyRitualScreen({
 }) {
   const [loading, setLoading] = useState(!isNewUser);
   const [suggestion, setSuggestion] = useState('');
-  const [phase, setPhase] = useState('greeting'); // greeting, name, suggestion, blast
-  const [readyToBlast, setReadyToBlast] = useState(false);
+  const [phase, setPhase] = useState('greeting');
   
   const content = CONTENT[language] || CONTENT.en;
   const name = userData?.name || 'Seeker';
+  const latin = isLatinScript(language);
   
-  // Greeting
   const greeting = isNewUser ? content.welcome : getGreeting();
-  const greetingLetters = greeting.split('');
   
   function getGreeting() {
     const hour = new Date().getHours();
@@ -117,26 +93,11 @@ export default function DailyRitualScreen({
     return content.evening;
   }
 
-  // Animation refs
-  const greetingOpacity = useRef(new Animated.Value(1)).current; // Already visible
-  const greetingAnims = useRef(
-    greetingLetters.map(() => ({
-      x: new Animated.Value(0),
-      y: new Animated.Value(0),
-      rotate: new Animated.Value(0),
-      opacity: new Animated.Value(1),
-    }))
-  ).current;
-  
+  // Animations
+  const greetingOpacity = useRef(new Animated.Value(1)).current;
   const nameOpacity = useRef(new Animated.Value(0)).current;
-  const nameX = useRef(new Animated.Value(0)).current;
-  
-  // Suggestion animations
-  const suggestionWords = suggestion ? suggestion.split(' ') : [];
-  const circleOpacity = useRef(new Animated.Value(0)).current;
-  const lineOpacity = useRef(new Animated.Value(0)).current;
-  const rotation = useRef(new Animated.Value(0)).current;
-  const suggestionWordAnims = useRef([]).current;
+  const suggestionOpacity = useRef(new Animated.Value(0)).current;
+  const allFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (isNewUser) {
@@ -146,27 +107,9 @@ export default function DailyRitualScreen({
     }
   }, []);
 
-  // Initialize suggestion word anims when suggestion changes
-  useEffect(() => {
-    if (suggestion) {
-      suggestionWordAnims.length = 0;
-      suggestion.split(' ').forEach(() => {
-        suggestionWordAnims.push({
-          x: new Animated.Value(0),
-          y: new Animated.Value(0),
-          rotate: new Animated.Value(0),
-          opacity: new Animated.Value(1),
-        });
-      });
-      
-      // Start suggestion animation
-      startSuggestionAnimation();
-    }
-  }, [suggestion]);
-
   const fetchSuggestion = async () => {
     try {
-      const response = await fetch('http://91.108.104.168:8080/api/public/daily-ritual', {
+      const response = await fetch('https://api.plutto.space/api/public/daily-ritual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -180,397 +123,80 @@ export default function DailyRitualScreen({
       const suggestionText = content.suggestions[energy] || content.suggestions['DEFAULT'];
       
       setLoading(false);
-      
-      // Start name animation first
-      startNameAnimation(() => {
-        // After name appears, wait then show suggestion
-        setTimeout(() => {
-          setSuggestion(suggestionText);
-        }, 800);
-      });
-      
+      showSequence(suggestionText);
     } catch (error) {
       console.error('Daily ritual error:', error);
       setLoading(false);
-      setSuggestion(content.suggestions['DEFAULT']);
-      startNameAnimation(() => {
-        setTimeout(() => {
-          setSuggestion(content.suggestions['DEFAULT']);
-        }, 800);
-      });
+      showSequence(content.suggestions['DEFAULT']);
     }
+  };
+
+  const showSequence = (suggestionText) => {
+    // Step 1: Show name (after 500ms)
+    setTimeout(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Animated.timing(nameOpacity, { toValue: 1, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
+    }, 500);
+
+    // Step 2: Show suggestion (after 1800ms)
+    setTimeout(() => {
+      setSuggestion(suggestionText);
+      Animated.timing(suggestionOpacity, { toValue: 1, duration: 600, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
+    }, 1800);
+
+    // Step 3: Hold, then fade all and transition (after 4500ms)
+    setTimeout(() => {
+      Animated.timing(allFade, { toValue: 0, duration: 500, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(() => {
+        if (onContinue) onContinue();
+      });
+    }, 4500);
   };
 
   const startNewUserAnimation = () => {
     // Name fades in
     setTimeout(() => {
-      Animated.timing(nameOpacity, {
-        toValue: 1,
-        duration: 800,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start(() => {
-        // Pause then blast
-        setTimeout(() => {
-          blastSequence();
-        }, 1500);
-      });
+      Animated.timing(nameOpacity, { toValue: 1, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
     }, 500);
-  };
 
-  const startNameAnimation = (callback) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    Animated.timing(nameOpacity, {
-      toValue: 1,
-      duration: 800,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      if (callback) callback();
-    });
-  };
-
-  const startSuggestionAnimation = () => {
-    setPhase('suggestion');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Circle appears and rotates
-    Animated.parallel([
-      Animated.timing(circleOpacity, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 3000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // At 2.5s, start the flow transition
+    // Hold, then transition
     setTimeout(() => {
-      flowToLine();
-    }, 2500);
-  };
-
-  const flowToLine = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Simultaneous: circle fades, line appears, rotation slows
-    Animated.parallel([
-      // Circle fades out
-      Animated.timing(circleOpacity, {
-        toValue: 0,
-        duration: 800,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      // Line fades in
-      Animated.timing(lineOpacity, {
-        toValue: 1,
-        duration: 800,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }),
-      // Rotation continues but slows (already at 1, go to 1.2)
-      Animated.timing(rotation, {
-        toValue: 1.3,
-        duration: 800,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Pause for reading
-      setTimeout(() => {
-        blastSequence();
-      }, 1500);
-    });
-  };
-
-  const blastSequence = () => {
-    setPhase('blast');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    
-    // 1. Blast greeting (letter by letter)
-    blastGreeting(() => {
-      // 2. Blast suggestion (word by word) - only for returning users
-      if (!isNewUser && suggestionWordAnims.length > 0) {
-        blastSuggestion(() => {
-          // 3. Name slides out right
-          exitName();
-        });
-      } else {
-        // New user: just exit name
-        exitName();
-      }
-    });
-  };
-
-  const blastGreeting = (callback) => {
-    const anims = greetingAnims.map((anim, i) => {
-      const angle = Math.random() * Math.PI * 2;
-      const distance = SCREEN_WIDTH * 1.5;
-      const delay = i * 25;
-      
-      return Animated.parallel([
-        Animated.timing(anim.x, {
-          toValue: Math.cos(angle) * distance,
-          duration: 350,
-          delay,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim.y, {
-          toValue: Math.sin(angle) * distance,
-          duration: 350,
-          delay,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim.rotate, {
-          toValue: (Math.random() - 0.5) * 720,
-          duration: 350,
-          delay,
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim.opacity, {
-          toValue: 0,
-          duration: 200,
-          delay: delay + 150,
-          useNativeDriver: true,
-        }),
-      ]);
-    });
-
-    Animated.parallel(anims).start(() => {
-      setTimeout(callback, 50);
-    });
-  };
-
-  const blastSuggestion = (callback) => {
-    const anims = suggestionWordAnims.map((anim, i) => {
-      const angle = Math.random() * Math.PI * 2;
-      const distance = SCREEN_WIDTH * 1.5;
-      const delay = i * 50;
-      
-      return Animated.parallel([
-        Animated.timing(anim.x, {
-          toValue: Math.cos(angle) * distance,
-          duration: 300,
-          delay,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim.y, {
-          toValue: Math.sin(angle) * distance,
-          duration: 300,
-          delay,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim.rotate, {
-          toValue: (Math.random() - 0.5) * 540,
-          duration: 300,
-          delay,
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim.opacity, {
-          toValue: 0,
-          duration: 200,
-          delay: delay + 100,
-          useNativeDriver: true,
-        }),
-      ]);
-    });
-
-    Animated.parallel(anims).start(() => {
-      setTimeout(callback, 50);
-    });
-  };
-
-  const exitName = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    Animated.parallel([
-      Animated.timing(nameX, {
-        toValue: SCREEN_WIDTH,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(nameOpacity, {
-        toValue: 0,
-        duration: 150,
-        delay: 100,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      if (onContinue) onContinue();
-    });
-  };
-
-  // Render greeting
-  const renderGreeting = () => {
-    return (
-      <View style={styles.greetingContainer}>
-        {greetingLetters.map((char, i) => {
-          const anim = greetingAnims[i];
-          
-          return (
-            <Animated.Text
-              key={i}
-              style={[
-                styles.greetingChar,
-                {
-                  opacity: anim.opacity,
-                  transform: [
-                    { translateX: anim.x },
-                    { translateY: anim.y },
-                    { rotate: anim.rotate.interpolate({
-                      inputRange: [-720, 720],
-                      outputRange: ['-720deg', '720deg'],
-                    })},
-                  ],
-                },
-              ]}
-            >
-              {char === ' ' ? '\u00A0' : char}
-            </Animated.Text>
-          );
-        })}
-      </View>
-    );
-  };
-
-  // Render name
-  const renderName = () => {
-    return (
-      <Animated.Text
-        style={[
-          styles.name,
-          {
-            opacity: nameOpacity,
-            transform: [{ translateX: nameX }],
-          },
-        ]}
-      >
-        {name}
-      </Animated.Text>
-    );
-  };
-
-  // Render suggestion (circle and line versions)
-  const renderSuggestion = () => {
-    if (isNewUser || !suggestion) return null;
-    
-    const words = suggestion.split(' ');
-    const RADIUS = 55;
-    
-    const rotationDeg = rotation.interpolate({
-      inputRange: [0, 1, 1.3],
-      outputRange: ['0deg', '360deg', '468deg'],
-    });
-
-    return (
-      <View style={styles.suggestionWrapper}>
-        {/* Circle formation */}
-        <Animated.View
-          style={[
-            styles.circleContainer,
-            {
-              opacity: circleOpacity,
-              transform: [{ rotate: rotationDeg }],
-            },
-          ]}
-        >
-          {words.map((word, i) => {
-            const angle = (i / words.length) * Math.PI * 2 - Math.PI / 2;
-            const x = Math.cos(angle) * RADIUS;
-            const y = Math.sin(angle) * RADIUS;
-            const wordRotation = (angle + Math.PI / 2) * (180 / Math.PI);
-            
-            return (
-              <Text
-                key={`circle-${i}`}
-                style={[
-                  styles.suggestionWord,
-                  {
-                    position: 'absolute',
-                    transform: [
-                      { translateX: x },
-                      { translateY: y },
-                      { rotate: `${wordRotation}deg` },
-                    ],
-                  },
-                ]}
-              >
-                {word}
-              </Text>
-            );
-          })}
-        </Animated.View>
-
-        {/* Line formation */}
-        <Animated.View
-          style={[
-            styles.lineContainer,
-            { opacity: lineOpacity },
-          ]}
-        >
-          {words.map((word, i) => {
-            const anim = suggestionWordAnims[i];
-            if (!anim) return null;
-            
-            return (
-              <Animated.Text
-                key={`line-${i}`}
-                style={[
-                  styles.suggestionWordLine,
-                  phase === 'blast' && {
-                    opacity: anim.opacity,
-                    transform: [
-                      { translateX: anim.x },
-                      { translateY: anim.y },
-                      { rotate: anim.rotate.interpolate({
-                        inputRange: [-540, 540],
-                        outputRange: ['-540deg', '540deg'],
-                      })},
-                    ],
-                  },
-                ]}
-              >
-                {word}{' '}
-              </Animated.Text>
-            );
-          })}
-        </Animated.View>
-      </View>
-    );
+      Animated.timing(allFade, { toValue: 0, duration: 500, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(() => {
+        if (onContinue) onContinue();
+      });
+    }, 3000);
   };
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.greetingContainer}>
-          {greetingLetters.map((char, i) => (
-            <Text key={i} style={styles.greetingChar}>
-              {char === ' ' ? '\u00A0' : char}
-            </Text>
-          ))}
-        </View>
-        <ActivityIndicator size="small" color={colors.silver} style={{ marginTop: 60 }} />
+        <Animated.View style={{ opacity: allFade }}>
+          <Text style={[styles.greeting, !latin && { letterSpacing: 0, fontWeight: '400' }]}>{greeting}</Text>
+          <ActivityIndicator size="small" color={colors.silver} style={{ marginTop: 60 }} />
+        </Animated.View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {renderGreeting()}
-      {renderName()}
-      {renderSuggestion()}
+      <Animated.View style={[styles.contentWrap, { opacity: allFade }]}>
+        {/* Greeting */}
+        <Animated.Text style={[styles.greeting, { opacity: greetingOpacity }, !latin && { letterSpacing: 0, fontWeight: '400' }]}>
+          {greeting}
+        </Animated.Text>
+
+        {/* Name */}
+        <Animated.Text style={[styles.name, { opacity: nameOpacity }, !latin && { letterSpacing: 0 }]}>
+          {name}
+        </Animated.Text>
+
+        {/* Suggestion */}
+        {suggestion ? (
+          <Animated.Text style={[styles.suggestion, { opacity: suggestionOpacity }, !latin && { letterSpacing: 0 }]}>
+            {suggestion}
+          </Animated.Text>
+        ) : null}
+      </Animated.View>
     </View>
   );
 }
@@ -583,58 +209,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
-  greetingContainer: {
-    flexDirection: 'row',
-    position: 'absolute',
-    top: SCREEN_HEIGHT * 0.38,
+  contentWrap: {
+    alignItems: 'center',
   },
-  greetingChar: {
-    fontSize: 24,
+  greeting: {
+    fontSize: 22,
     fontWeight: '300',
     color: colors.silver,
     letterSpacing: 1,
+    textAlign: 'center',
   },
   name: {
     fontSize: 32,
-    fontWeight: '600',
+    fontWeight: '300',
     color: colors.white,
-    position: 'absolute',
-    top: SCREEN_HEIGHT * 0.38 + 40,
     letterSpacing: 0.5,
+    textAlign: 'center',
+    marginTop: 12,
   },
-  suggestionWrapper: {
-    position: 'absolute',
-    top: SCREEN_HEIGHT * 0.55,
-    width: SCREEN_WIDTH,
-    height: 150,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  circleContainer: {
-    width: 150,
-    height: 150,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-  },
-  suggestionWord: {
-    fontSize: 13,
+  suggestion: {
+    fontSize: 14,
     fontWeight: '300',
-    color: colors.white,
-    letterSpacing: 0.3,
-  },
-  lineContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    paddingHorizontal: spacing.lg,
-  },
-  suggestionWordLine: {
-    fontSize: 15,
-    fontWeight: '300',
-    color: colors.white,
-    letterSpacing: 0.3,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+    marginTop: 40,
+    lineHeight: 22,
+    paddingHorizontal: spacing.xl,
   },
 });

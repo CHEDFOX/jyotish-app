@@ -8,23 +8,26 @@ export const colors = {
   ember: '#8B7355',
   success: '#34C759',
   error: '#FF3B30',
+  whisper: 'rgba(255,255,255,0.06)',
+  mist: 'rgba(255,255,255,0.12)',
+  goldFaint: 'rgba(212,175,55,0.15)',
 };
 
 export const typography = {
   large: {
     fontSize: 34,
-    fontWeight: '700',
+    fontWeight: '200',
     letterSpacing: 0.4,
   },
   title: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '300',
     letterSpacing: 0.2,
   },
   body: {
     fontSize: 17,
-    fontWeight: '400',
-    letterSpacing: -0.4,
+    fontWeight: '300',
+    letterSpacing: -0.2,
     lineHeight: 24,
   },
   caption: {

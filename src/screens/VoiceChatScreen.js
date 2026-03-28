@@ -322,7 +322,7 @@ export default function VoiceChatScreen({ onClose, onConversationUpdate, kundliD
           // Get Oracle response
           setStatus(content.thinking);
           console.log('Getting Oracle response...');
-          const chatResult = await chatWithOracle(userText, kundliData);
+          const chatResult = await chatWithOracle(userText, kundliData, newConversation);
           console.log('Oracle response:', chatResult);
 
           if (chatResult.success && chatResult.data?.response) {
@@ -445,8 +445,18 @@ export default function VoiceChatScreen({ onClose, onConversationUpdate, kundliD
         <Text style={styles.backArrow}>←</Text>
       </TouchableOpacity>
 
+      {/* Mode label */}
+      {!isExiting && (
+        <View style={styles.modeLabelContainer}>
+          <View style={[styles.modeIndicator, isOracleSpeaking && styles.modeIndicatorOracle]} />
+          <Text style={styles.modeLabel}>
+            {isOracleSpeaking ? 'Oracle' : 'You'}
+          </Text>
+        </View>
+      )}
+
       {/* Center area - tap to manually stop */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.centerContainer}
         activeOpacity={0.9}
         onPress={handleManualStop}
@@ -464,7 +474,7 @@ export default function VoiceChatScreen({ onClose, onConversationUpdate, kundliD
         <View style={styles.statusContainer}>
           <Text style={styles.statusText}>{status}</Text>
           {isRecording && !isProcessing && (
-            <Text style={styles.hintText}>Tap circle to send • Auto-sends after silence</Text>
+            <Text style={styles.hintText}>Tap to send · Auto-sends on silence</Text>
           )}
         </View>
       )}
@@ -485,8 +495,32 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   backArrow: {
-    fontSize: 28,
+    fontSize: 26,
     color: colors.silver,
+  },
+  modeLabelContainer: {
+    position: 'absolute',
+    top: 68,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  modeIndicator: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.white,
+    marginRight: 6,
+  },
+  modeIndicatorOracle: {
+    backgroundColor: colors.gold,
+  },
+  modeLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.silver,
+    letterSpacing: 1,
   },
   centerContainer: {
     flex: 1,
@@ -501,9 +535,9 @@ const styles = StyleSheet.create({
   },
   dot: {
     position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: colors.white,
   },
   dotOracle: {
@@ -517,14 +551,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '300',
     color: colors.silver,
-    letterSpacing: 0.5,
+    letterSpacing: 0,
   },
   hintText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.ash,
-    marginTop: spacing.sm,
+    letterSpacing: 0.3,
+    marginTop: 8,
   },
 });
