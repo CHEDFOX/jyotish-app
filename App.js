@@ -18,6 +18,7 @@ import PaymentScreen from './src/screens/PaymentScreen';
 import DailyRitualScreen from './src/screens/DailyRitualScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import KundliMatchScreen from './src/screens/KundliMatchScreen';
+import FeatureScreen from './src/screens/feature/FeatureScreen';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -175,6 +176,18 @@ export default function App() {
   if (screen === 'payment') return <><StatusBar style="light" /><PaymentScreen language={language} onComplete={() => { setIsNewUser(true); setShowDailyRitual(true); setScreen('home'); }} /></>;
   if (showDailyRitual) return <><StatusBar style="light" /><DailyRitualScreen language={language} userData={user} kundliData={kundliData} isNewUser={isNewUser} onContinue={() => { setShowDailyRitual(false); setIsNewUser(false); }} /></>;
   if (screen === 'match') return <><StatusBar style="light" /><KundliMatchScreen kundliData={kundliData} language={language} onBack={handleBack} /></>;
+
+  // ─── FEATURE SCREENS ───
+  const FEATURE_IDS = [
+    'daily-vibe', 'power-hours', 'planet-strength', 'festivals',
+    'cosmic-match', 'ideal-partner', 'match-oracle', 'relationship-xray',
+    'soul-profile', 'rare-traits', 'cosmic-novel', 'personal-deities',
+    'money-calendar', 'gemstone-profile', 'year-map', 'danger-radar',
+    'what-if', 'find-muhurta', 'past-event', 'family-karma',
+  ];
+  if (FEATURE_IDS.includes(screen)) {
+    return <><StatusBar style="light" /><FeatureScreen featureId={screen} kundliData={kundliData} language={language} onBack={handleBack} /></>;
+  }
 
   return <><StatusBar style="light" /><HomeScreen language={language} userData={user} birthData={birthData} kundliData={kundliData} onLogout={handleLogout} onLanguageChange={handleLanguageChange} onNavigate={handleNavigate} chatMessages={chatMessages} onMessagesChange={setChatMessages} fontFamily={fontFamily} typography={typography} onTypographyChange={handleTypographyChange} /></>;
 }

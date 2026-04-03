@@ -19,6 +19,7 @@ import { chatWithOracle } from '../api/backend';
 import VoiceChatScreen from './VoiceChatScreen';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
+import FeaturesTab from '../components/FeaturesTab';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const isLatinScript = (lang) => ['en', 'es', 'pt'].includes(lang);
@@ -477,28 +478,7 @@ const YouTab = ({ userData, kundliData, language, onLogout, onLanguageChange, fo
   );
 };
 
-// ─── FEATURES TAB ───
-const FEATURES_CONTENT = {
-  en: { title: 'Explore', match: 'Kundli Match', matchSub: 'Compare two birth charts', gems: 'Gemstone Store', gemsSub: 'Stones aligned to your chart', soon: 'Coming Soon' },
-  hi: { title: 'खोजें', match: 'कुंडली मिलान', matchSub: 'दो जन्म कुंडलियों की तुलना', gems: 'रत्न दुकान', gemsSub: 'आपकी कुंडली के अनुसार रत्न', soon: 'जल्द आ रहा है' },
-};
-const FeaturesTab = ({ language, onNavigate }) => {
-  const latin = isLatinScript(language);
-  const fc = FEATURES_CONTENT[language] || FEATURES_CONTENT.en;
-  return (
-    <View style={s.featuresContainer}>
-      <Text style={[s.featuresTitle, !latin && { letterSpacing: 0, fontWeight: '400' }]}>{fc.title}</Text>
-      <TouchableOpacity style={s.featureCard} activeOpacity={0.7} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); if (onNavigate) onNavigate('match'); }}>
-        <View><Text style={[s.featureTitle, !latin && { letterSpacing: 0 }]}>{fc.match}</Text><Text style={[s.featureSubtitle, !latin && { letterSpacing: 0 }]}>{fc.matchSub}</Text></View>
-        <Text style={s.featureArrow}>›</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={[s.featureCard, s.featureCardDisabled]} activeOpacity={1}>
-        <View><Text style={[s.featureTitle, s.featureTitleDisabled, !latin && { letterSpacing: 0 }]}>{fc.gems}</Text><Text style={[s.featureSubtitle, !latin && { letterSpacing: 0 }]}>{fc.gemsSub}</Text></View>
-        <Text style={s.featureSoon}>{fc.soon}</Text>
-      </TouchableOpacity>
-    </View>
-  );
-};
+// ─── FEATURES TAB (imported from components/FeaturesTab.js) ───
 
 // ─── MAIN ───
 export default function HomeScreen({ language = 'en', userData, birthData, kundliData, onLogout, onLanguageChange, onNavigate, chatMessages = [], onMessagesChange, fontFamily, typography = 'sans', onTypographyChange }) {
@@ -555,7 +535,7 @@ export default function HomeScreen({ language = 'en', userData, birthData, kundl
           </View></View>
         </KeyboardAvoidingView>
       )}
-      {activeTab === 'features' && <FeaturesTab language={language} onNavigate={onNavigate} />}
+      {activeTab === 'features' && <FeaturesTab language={language} onNavigate={onNavigate} kundliData={kundliData} />}
       {activeTab === 'you' && <YouTab userData={userData} kundliData={kundliData} language={language} onLogout={onLogout} onLanguageChange={onLanguageChange} fontFamily={fontFamily} typography={typography} onTypographyChange={onTypographyChange} />}
       <View style={s.tabBar}>
         <TouchableOpacity style={s.tabItem} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab('chat'); }}><ChatIcon active={activeTab === 'chat'} /></TouchableOpacity>
